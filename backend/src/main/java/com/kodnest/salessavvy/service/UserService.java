@@ -1,6 +1,5 @@
 package com.kodnest.salessavvy.service;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -11,33 +10,32 @@ import com.kodnest.salessavvy.repository.UserRepository;
 @Service
 public class UserService {
 
-    private final UserRepository userRepository;
-    private final BCryptPasswordEncoder passwordEncoder;
+	private final UserRepository userRepository;
+	private final BCryptPasswordEncoder passwordEncoder;
+	
+	public UserService(UserRepository userRepository) {
+		this.userRepository = userRepository;
+		this.passwordEncoder = new BCryptPasswordEncoder();
+	}
 
-    @Autowired
-    public UserService(UserRepository userRepository) {
-        this.userRepository = userRepository;
-        this.passwordEncoder = new BCryptPasswordEncoder();
-    }
+	public User registerUser(User user) {
+		// Check if username or email already exists
+		if (userRepository.findByUsername(user.getUsername()).isPresent()) {
+			throw new RuntimeException("Username is already taken");
+		}
 
-    public User registerUser(User user) {
-        // Check if username or email already exists
-        if (userRepository.findByUsername(user.getUsername()).isPresent()) {
-            throw new RuntimeException("Username is already taken");
-        }
+		if (userRepository.findByEmail(user.getEmail()).isPresent()) {
+			throw new RuntimeException("Email is already registered");
+		}
 
-        if (userRepository.findByEmail(user.getEmail()).isPresent()) {
-            throw new RuntimeException("Email is already registered");
-        }
+		// Encode password before saving
+		user.setPassword(passwordEncoder.encode(user.getPassword()));
 
-        // Encode password before saving
-        user.setPassword(passwordEncoder.encode(user.getPassword()));
-        
-        // Assign default role
-        user.setRole(Role.CUSTOMER);
+		// Assign default role
+		user.setRole(Role.CUSTOMER);
 
-        // Save the user
-        return userRepository.save(user);
-    }
+		// Save the user
+		return userRepository.save(user);
+	}
 
 }

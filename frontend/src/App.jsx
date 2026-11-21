@@ -1,11 +1,12 @@
+import React from 'react';
+import { BrowserRouter as Router } from 'react-router-dom';
+import AppRoutes from './Routes';
 
 function App() {
   return (
-    <div>
-      <h1>Welcome to Sales Savvy</h1>
-      <p>Your online shopping destination.</p>
-      <button>Explore Products</button>
-    </div>
+    <Router>
+      <AppRoutes />
+    </Router>
   );
 }
 
