@@ -93,6 +93,12 @@
   font-size: 14px;
 }
 
+.success-message {
+  margin: 0 0 16px;
+  color: #245c3e;
+  font-size: 14px;
+}
+
 @media (max-width: 480px) {
   .form-container {
     padding: 28px 22px;

@@ -1,45 +1,27 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import './assets/styles.css';
+import { postJson } from './api';
 
 export default function LoginPage() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState(null);
-  const navigate = useNavigate();
+  const [success, setSuccess] = useState(null);
 
   const handleSignIn = async (e) => {
     e.preventDefault();
-    setError(null); // Clear previous errors
+    setError(null);
+    setSuccess(null);
 
     try {
-      const response = await fetch('http://localhost:9090/api/auth/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include', // Ensures cookies are sent and received
-        body: JSON.stringify({ username, password }),
-      });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        console.log('User logged in successfully:', data);
-
-        // Redirect user based on their role
-        if (data.role === 'CUSTOMER') {
-          navigate('/customerhome');
-        } else if (data.role === 'ADMIN') {
-          navigate('/adminhome');
-        } else {
-          throw new Error('Invalid user role');
-        }
-      } else {
-        throw new Error(data.error || 'Login failed');
+      const data = await postJson('/api/auth/login', { username, password }, { credentials: 'include' });
+      if (data.role !== 'CUSTOMER' && data.role !== 'ADMIN') {
+        throw new Error('Login succeeded, but the backend returned an unsupported user role.');
       }
+      setSuccess('Login successful.');
     } catch (err) {
-      setError(err.message);
+      console.error('Login failed', err);
+      setError(err.message || 'Login failed');
     }
   };
 
@@ -48,6 +30,7 @@ export default function LoginPage() {
       <div className="form-container">
         <h1 className="form-title">Login</h1>
         {error && <p className="error-message">{error}</p>}
+        {success && <p className="success-message">{success}</p>}
         <form onSubmit={handleSignIn} className="form-content">
           <div className="form-group">
             <label htmlFor="username" className="form-label">Username</label>

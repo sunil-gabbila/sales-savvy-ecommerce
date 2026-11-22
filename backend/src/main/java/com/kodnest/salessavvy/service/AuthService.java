@@ -5,7 +5,11 @@ import java.security.Key;
 import java.time.LocalDateTime;
 import java.util.Date;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.dao.DataAccessException;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -21,6 +25,7 @@ import io.jsonwebtoken.security.Keys;
 @Service
 public class AuthService {
 
+    private static final Logger log = LoggerFactory.getLogger(AuthService.class);
     private final Key SIGNING_KEY;
 
     private final UserRepository userRepository;
@@ -42,30 +47,45 @@ public class AuthService {
     }
 
     public User authenticate(String username, String password) {
-        User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new RuntimeException("Invalid username or password"));
+        log.info("Authentication service started");
+        User user;
+        try {
+            user = userRepository.findByUsername(username)
+                    .orElseThrow(() -> new BadCredentialsException("Invalid username or password"));
+        } catch (DataAccessException e) {
+            log.error("Could not retrieve user credentials from the database", e);
+            throw e;
+        }
 
         if (!passwordEncoder.matches(password, user.getPassword())) {
-            throw new RuntimeException("Invalid username or password");
+            throw new BadCredentialsException("Invalid username or password");
         }
+        log.info("Authentication credentials validated");
         return user;
     }
 
     public String generateToken(User user) {
-        String token;
-        LocalDateTime now = LocalDateTime.now();
-        JWTToken existingToken = jwtTokenRepository.findByUserId(user.getUserId());
+        log.info("Generating or reusing an authentication token");
+        try {
+            String token;
+            LocalDateTime now = LocalDateTime.now();
+            JWTToken existingToken = jwtTokenRepository.findByUserId(user.getUserId());
 
-        if (existingToken != null && now.isBefore(existingToken.getExpiresAt())) {
-            token = existingToken.getToken();
-        } else {
-            token = generateNewToken(user);
-            if (existingToken != null) {
-                jwtTokenRepository.delete(existingToken);
+            if (existingToken != null && now.isBefore(existingToken.getExpiresAt())) {
+                token = existingToken.getToken();
+            } else {
+                token = generateNewToken(user);
+                if (existingToken != null) {
+                    jwtTokenRepository.delete(existingToken);
+                }
+                saveToken(user, token);
             }
-            saveToken(user, token);
+            log.info("Authentication token is ready");
+            return token;
+        } catch (DataAccessException e) {
+            log.error("Could not persist or retrieve the authentication token", e);
+            throw e;
         }
-        return token;
     }
 
     private String generateNewToken(User user) {
@@ -81,5 +101,6 @@ public class AuthService {
     public void saveToken(User user, String token) {
         JWTToken jwtToken = new JWTToken(user, token, LocalDateTime.now().plusHours(1));
         jwtTokenRepository.save(jwtToken);
+        log.info("Authentication token saved");
     }
 }
