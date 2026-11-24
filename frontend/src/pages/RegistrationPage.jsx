@@ -1,7 +1,6 @@
 // RegistrationPage.jsx
 import React, { useState } from 'react';
-import './assets/styles.css';
-import { postJson } from './api';
+import '../assets/styles.css';
 
 export default function RegistrationPage() {
   const [username, setUsername] = useState('');
@@ -9,19 +8,31 @@ export default function RegistrationPage() {
   const [password, setPassword] = useState('');
   const [role, setRole] = useState('');
   const [error, setError] = useState(null);
-  const [success, setSuccess] = useState(null);
 
   const handleSignUp = async (e) => {
     e.preventDefault();
-    setError(null);
-    setSuccess(null);
+    setError(null); // Clear previous errors
 
     try {
-      const data = await postJson('/api/users/register', { username, email, password, role });
-      setSuccess(data.message || 'Registration successful. You can now log in.');
+      const response = await fetch('http://localhost:9090/api/users/register', {
+        method: 'POST', 
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ username, email, password, role }),
+      });
+      
+      const data = await response.json();
+
+      if (response.ok) {
+        console.log('User registered successfully:', data);
+        // Redirect to login page
+        window.location.href = '/';
+      } else {
+        throw new Error(data.error || 'Registration failed');
+      }
     } catch (err) {
-      console.error('Registration failed', err);
-      setError(err.message || 'Registration failed');
+      setError(err.message);
     }
   };
 
@@ -30,7 +41,6 @@ export default function RegistrationPage() {
       <div className="form-container">
         <h1 className="form-title">Register</h1>
         {error && <p className="error-message">{error}</p>}
-        {success && <p className="success-message">{success}</p>}
         <form onSubmit={handleSignUp} className="form-content">
           <div className="form-group">
             <label htmlFor="username" className="form-label">Username</label>

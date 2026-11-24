@@ -1,16 +1,12 @@
 package com.kodnest.salessavvy.controller;
 
-import java.time.Duration;
+
 import java.util.HashMap;
 import java.util.Map;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.http.ResponseCookie;
-import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -20,50 +16,75 @@ import com.kodnest.salessavvy.dto.LoginRequest;
 import com.kodnest.salessavvy.entity.User;
 import com.kodnest.salessavvy.service.AuthService;
 
-@RestController
-@RequestMapping("/api/auth")
-public class AuthController {
-    private static final Logger log = LoggerFactory.getLogger(AuthController.class);
-    private final AuthService authService;
+import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 
+@RestController
+@CrossOrigin(origins = "http://localhost:5174", allowCredentials = "true")
+@RequestMapping("/api/auth")
+
+public class AuthController {
+    private final AuthService authService;
+    
     public AuthController(AuthService authService) {
         this.authService = authService;
     }
 
+    
     @PostMapping("/login")
-    public ResponseEntity<?> login(@RequestBody LoginRequest loginRequest) {
-        log.info("Login request received");
-        if (loginRequest == null
-                || loginRequest.getUsername() == null || loginRequest.getUsername().isBlank()
-                || loginRequest.getPassword() == null || loginRequest.getPassword().isBlank()) {
-            return ResponseEntity.badRequest().body(Map.of("error", "Username and password are required"));
-        }
-
+    public ResponseEntity<?> login(@RequestBody LoginRequest loginRequest, HttpServletResponse response) {
         try {
             User user = authService.authenticate(loginRequest.getUsername(), loginRequest.getPassword());
             String token = authService.generateToken(user);
 
-            ResponseCookie cookie = ResponseCookie.from("authToken", token)
-                    .httpOnly(true)
-                    .secure(false)
-                    .path("/")
-                    .maxAge(Duration.ofHours(1))
-                    .sameSite("Lax")
-                    .build();
+            Cookie cookie = new Cookie("authToken", token);
+            cookie.setHttpOnly(true);
+            cookie.setSecure(false); // Set to true if using HTTPS
+            cookie.setPath("/");
+            cookie.setMaxAge(3600); // 1 hour
+            cookie.setDomain("localhost");
+            response.addCookie(cookie);
+           // Optional but useful
+            
+            response.addHeader("Set-Cookie",
+                    String.format("authToken=%s; HttpOnly; Path=/; Max-Age=3600; SameSite=None", token));
 
+            
             Map<String, Object> responseBody = new HashMap<>();
             responseBody.put("message", "Login successful");
             responseBody.put("role", user.getRole().name());
             responseBody.put("username", user.getUsername());
 
-            log.info("Login completed successfully");
-            return ResponseEntity.ok()
-                    .header(HttpHeaders.SET_COOKIE, cookie.toString())
-                    .body(responseBody);
-        } catch (BadCredentialsException e) {
-            log.warn("Login rejected because the credentials are invalid");
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(Map.of("error", "Invalid username or password"));
+            return ResponseEntity.ok(responseBody);
+            
+        } 
+        catch (RuntimeException e) 
+        {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", e.getMessage()));
         }
     }
+
+    
+    @PostMapping("/logout")
+    public ResponseEntity<Map<String, String>> logout(HttpServletRequest request,HttpServletResponse response) {
+        try {
+        	User user=(User) request.getAttribute("authenticatedUser");
+            authService.logout(user);
+            Cookie cookie = new Cookie("authToken", null);
+            cookie.setHttpOnly(true);
+            cookie.setMaxAge(0);
+            cookie.setPath("/");
+            response.addCookie(cookie);
+            Map<String, String> responseBody = new HashMap<>();
+            responseBody.put("message", "Logout successful");
+            return ResponseEntity.ok(responseBody);
+        } catch (RuntimeException e) {
+            Map<String, String> errorResponse = new HashMap<>();
+            errorResponse.put("message", "Logout failed");
+            return ResponseEntity.status(500).body(errorResponse);
+        }
+    }
+    
 }
+

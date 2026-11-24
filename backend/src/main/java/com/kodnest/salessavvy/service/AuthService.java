@@ -4,16 +4,14 @@ import java.nio.charset.StandardCharsets;
 import java.security.Key;
 import java.time.LocalDateTime;
 import java.util.Date;
+import java.util.Optional;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.dao.DataAccessException;
-import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 
-import com.kodnest.salessavvy.JWTToken;
+import com.kodnest.salessavvy.entity.JWTToken;
 import com.kodnest.salessavvy.entity.User;
 import com.kodnest.salessavvy.repository.JWTTokenRepository;
 import com.kodnest.salessavvy.repository.UserRepository;
@@ -25,14 +23,14 @@ import io.jsonwebtoken.security.Keys;
 @Service
 public class AuthService {
 
-    private static final Logger log = LoggerFactory.getLogger(AuthService.class);
     private final Key SIGNING_KEY;
 
     private final UserRepository userRepository;
     private final JWTTokenRepository jwtTokenRepository;
     private final BCryptPasswordEncoder passwordEncoder;
 
-    // Injecting the application-specific JWT secret from properties.
+    // Injecting jwt.secret from properties file
+
     public AuthService(UserRepository userRepository, JWTTokenRepository jwtTokenRepository,
                        @Value("${salessavvy.jwt.secret}") String jwtSecret) {
         this.userRepository = userRepository;
@@ -41,51 +39,36 @@ public class AuthService {
 
         // Ensure the key length is at least 64 bytes
         if (jwtSecret.getBytes(StandardCharsets.UTF_8).length < 64) {
-            throw new IllegalArgumentException("SALESSAVVY_JWT_SECRET must be at least 64 bytes long for HS512.");
+            throw new IllegalArgumentException("JWT_SECRET in application.properties must be at least 64 bytes long for HS512.");
         }
         this.SIGNING_KEY = Keys.hmacShaKeyFor(jwtSecret.getBytes(StandardCharsets.UTF_8));
     }
 
     public User authenticate(String username, String password) {
-        log.info("Authentication service started");
-        User user;
-        try {
-            user = userRepository.findByUsername(username)
-                    .orElseThrow(() -> new BadCredentialsException("Invalid username or password"));
-        } catch (DataAccessException e) {
-            log.error("Could not retrieve user credentials from the database", e);
-            throw e;
-        }
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new RuntimeException("Invalid username or password"));
 
         if (!passwordEncoder.matches(password, user.getPassword())) {
-            throw new BadCredentialsException("Invalid username or password");
+            throw new RuntimeException("Invalid username or password");
         }
-        log.info("Authentication credentials validated");
         return user;
     }
 
     public String generateToken(User user) {
-        log.info("Generating or reusing an authentication token");
-        try {
-            String token;
-            LocalDateTime now = LocalDateTime.now();
-            JWTToken existingToken = jwtTokenRepository.findByUserId(user.getUserId());
+        String token;
+        LocalDateTime now = LocalDateTime.now();
+        JWTToken existingToken = jwtTokenRepository.findByUserId(user.getUserId());
 
-            if (existingToken != null && now.isBefore(existingToken.getExpiresAt())) {
-                token = existingToken.getToken();
-            } else {
-                token = generateNewToken(user);
-                if (existingToken != null) {
-                    jwtTokenRepository.delete(existingToken);
-                }
-                saveToken(user, token);
+        if (existingToken != null && now.isBefore(existingToken.getExpiresAt())) {
+            token = existingToken.getToken();
+        } else {
+            token = generateNewToken(user);
+            if (existingToken != null) {
+                jwtTokenRepository.delete(existingToken);
             }
-            log.info("Authentication token is ready");
-            return token;
-        } catch (DataAccessException e) {
-            log.error("Could not persist or retrieve the authentication token", e);
-            throw e;
+            saveToken(user, token);
         }
+        return token;
     }
 
     private String generateNewToken(User user) {
@@ -101,6 +84,43 @@ public class AuthService {
     public void saveToken(User user, String token) {
         JWTToken jwtToken = new JWTToken(user, token, LocalDateTime.now().plusHours(1));
         jwtTokenRepository.save(jwtToken);
-        log.info("Authentication token saved");
+    }
+
+    public void logout(User user) {
+        jwtTokenRepository.deleteByUserId(user.getUserId());
+    }
+
+    public boolean validateToken(String token) {
+        try {
+            System.err.println("VALIDATING TOKEN...");
+
+            // Parse and validate the token
+            Jwts.parserBuilder()
+                .setSigningKey(SIGNING_KEY)
+                .build()
+                .parseClaimsJws(token);
+
+            // Check if the token exists in the database and is not expired
+            Optional<JWTToken> jwtToken = jwtTokenRepository.findByToken(token);
+            if (jwtToken.isPresent()) {
+                System.err.println("Token Expiry: " + jwtToken.get().getExpiresAt());
+                System.err.println("Current Time: " + LocalDateTime.now());
+                return jwtToken.get().getExpiresAt().isAfter(LocalDateTime.now());
+            }
+
+            return false;
+        } catch (Exception e) {
+            System.err.println("Token validation failed: " + e.getMessage());
+            return false;
+        }
+    }
+
+    public String extractUsername(String token) {
+        return Jwts.parserBuilder()
+                .setSigningKey(SIGNING_KEY)
+                .build()
+                .parseClaimsJws(token)
+                .getBody()
+                .getSubject();
     }
 }

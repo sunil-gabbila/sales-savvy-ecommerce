@@ -1,9 +1,6 @@
-package com.kodnest.salessavvy;
+package com.kodnest.salessavvy.entity;
 
 import java.time.LocalDateTime;
-import java.time.chrono.ChronoLocalDateTime;
-
-import com.kodnest.salessavvy.entity.User;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -16,13 +13,12 @@ import jakarta.persistence.Table;
 
 @Entity
 @Table(name = "jwt_tokens")
-
 public class JWTToken {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY) // Specifies that the tokenId will be auto-generated.
     private Integer tokenId; // Stores the unique identifier for each token.
 
-    @ManyToOne // Establishes a Many-to-one relationship with the User entity.
+    @ManyToOne // Establishes a many-to-one relationship with the User entity.
     @JoinColumn(name = "user_id", nullable = false) // Links the token to a specific user in the Users table.
     private User user; // Represents the user associated with the token.
 
@@ -46,7 +42,6 @@ public class JWTToken {
 		this.token = token;
 		this.expiresAt = expiresAt;
 	}
-    // Getters and setters
 
 	public Integer getTokenId() {
 		return tokenId;
@@ -80,5 +75,10 @@ public class JWTToken {
 		this.expiresAt = expiresAt;
 	}
 
-	
+    // Getters and Setters
+    public JWTToken() {
+		// TODO Auto-generated constructor stub
+	}
+    
+    
 }
