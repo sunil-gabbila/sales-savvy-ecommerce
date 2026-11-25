@@ -29,7 +29,10 @@ public class AuthenticationFilter implements Filter {
     private final AuthService authService;
     private final UserRepository userRepository;
 
-    private static final String ALLOWED_ORIGIN = "http://localhost:5174";
+    private static final String[] ALLOWED_ORIGINS = {
+        "http://localhost:5174",
+        "http://127.0.0.1:5174"
+    };
 
     private static final String[] UNAUTHENTICATED_PATHS = {
         "/api/users/register",
@@ -70,7 +73,7 @@ public class AuthenticationFilter implements Filter {
 
         // Handle preflight (OPTIONS) requests
         if (httpRequest.getMethod().equalsIgnoreCase("OPTIONS")) {
-            setCORSHeaders(httpResponse);
+            setCORSHeaders(httpRequest, httpResponse);
             return;
         }
 
@@ -111,8 +114,11 @@ public class AuthenticationFilter implements Filter {
         chain.doFilter(request, response);
     }
 
-    private void setCORSHeaders(HttpServletResponse response) {
-        response.setHeader("Access-Control-Allow-Origin", ALLOWED_ORIGIN);
+    private void setCORSHeaders(HttpServletRequest request, HttpServletResponse response) {
+        String origin = request.getHeader("Origin");
+        if (Arrays.asList(ALLOWED_ORIGINS).contains(origin)) {
+            response.setHeader("Access-Control-Allow-Origin", origin);
+        }
         response.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
         response.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
         response.setHeader("Access-Control-Allow-Credentials", "true");

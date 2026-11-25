@@ -23,18 +23,15 @@ export default function CustomerHomePage() {
   const fetchProducts = async (category = '') => {
     try {
       const response = await fetch(
-        `http://localhost:9090/api/products${category ? `?category=${category}` : '?category=Shirts'}`, 
+        `http://localhost:9090/api/products${category ? `?category=${encodeURIComponent(category)}` : ''}`,
         { credentials: 'include' } // Include authToken as a cookie
       );
       const data = await response.json();
-      if(data)
-     { 
+      if (!response.ok) {
+        throw new Error(data.error || `Request failed with status ${response.status}`);
+      }
       setUsername(data.user?.name || 'Guest'); // Extract username
       setProducts(data.products || []);
-    }else{
-      setProducts([]);
-
-    }
     } catch (error) {
       console.error('Error fetching products:', error);
       setProducts([]);
@@ -44,9 +41,12 @@ export default function CustomerHomePage() {
   const fetchCartCount = async () => {
     setIsCartLoading(true); // Set loading state
     try {
-      const response = await fetch(`http://localhost:9090/api/cart/items/count?username=${username}`, {
+      const response = await fetch(`http://localhost:9090/api/cart/items/count?username=${encodeURIComponent(username)}`, {
         credentials: 'include', // Include authToken as a cookie
       });
+      if (!response.ok) {
+        throw new Error(`Request failed with status ${response.status}`);
+      }
       const count = await response.json();
       setCartCount(count);
       setCartError(false); // Reset error state if successful
