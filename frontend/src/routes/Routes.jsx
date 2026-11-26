@@ -1,5 +1,5 @@
 import React from "react";
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router-dom";
 import LoginPage from "../pages/LoginPage";
 import RegistrationPage from "../pages/RegistrationPage";
 import CustomerHomePage from "../pages/CustomerHomePage";
@@ -18,6 +18,8 @@ const AppRoutes = () => {
       <Route path="/orders" element={<OrderPage />} />
       <Route path="/admin" element={<AdminLogin />} />
       <Route path="/admindashboard" element={<AdminDashboard />} />
+      <Route path="/adminhome" element={<AdminDashboard />} />
+      <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
 };

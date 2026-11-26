@@ -42,12 +42,13 @@ public class PaymentController {
      * @return ResponseEntity with Razorpay Order ID
      */
     @PostMapping("/create")
-    public ResponseEntity<String> createPaymentOrder(@RequestBody Map<String, Object> requestBody, HttpServletRequest request) {
+    public ResponseEntity<Map<String, Object>> createPaymentOrder(@RequestBody Map<String, Object> requestBody, HttpServletRequest request) {
         try {
             // Fetch authenticated user
             User user = (User) request.getAttribute("authenticatedUser");
             if (user == null) {
-                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("User not authenticated");
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body(Map.of("error", "User not authenticated"));
             }
 
             // Extract totalAmount and cartItems from the request body
@@ -69,13 +70,19 @@ public class PaymentController {
             // Call the payment service to create a Razorpay order
             String razorpayOrderId = paymentService.createOrder(user.getUserId(), totalAmount, cartItems);
 
-            return ResponseEntity.ok(razorpayOrderId);
+            return ResponseEntity.ok(Map.of(
+                    "orderId", razorpayOrderId,
+                    "keyId", paymentService.getRazorpayKeyId(),
+                    "amount", totalAmount.multiply(BigDecimal.valueOf(100)).intValueExact(),
+                    "currency", "INR"));
         } catch (RazorpayException e) {
             e.printStackTrace();
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error creating Razorpay order: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", "Error creating Razorpay order: " + e.getMessage()));
         } catch (Exception e) {
             e.printStackTrace();
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Invalid request data: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(Map.of("error", "Invalid request data: " + e.getMessage()));
         }
     }
 

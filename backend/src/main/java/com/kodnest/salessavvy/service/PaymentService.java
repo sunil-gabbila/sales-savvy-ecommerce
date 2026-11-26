@@ -38,6 +38,10 @@ public class PaymentService {
         this.cartRepository = cartRepository;
     }
 
+    public String getRazorpayKeyId() {
+        return razorpayKeyId;
+    }
+
     @Transactional
     public String createOrder(int userId, BigDecimal totalAmount, List<OrderItem> cartItems) throws RazorpayException {
         // Create Razorpay client
@@ -45,7 +49,7 @@ public class PaymentService {
 
         // Prepare Razorpay order request
         var orderRequest = new JSONObject();
-        orderRequest.put("amount", totalAmount.multiply(BigDecimal.valueOf(100)).intValue()); // Amount in paise
+        orderRequest.put("amount", totalAmount.movePointRight(2).intValueExact()); // Amount in paise
         orderRequest.put("currency", "INR");
         orderRequest.put("receipt", "txn_" + System.currentTimeMillis());
 

@@ -114,17 +114,20 @@ const CartPage = () => {
         body: JSON.stringify(requestBody),
       });
 
-      if (!response.ok) throw new Error(await response.text());
-      const razorpayOrderId = await response.text();
+      const order = await response.json();
+      if (!response.ok) throw new Error(order.error || "Failed to create payment order");
+      if (typeof window.Razorpay !== "function") {
+        throw new Error("Payment checkout could not be loaded. Please refresh and try again.");
+      }
 
       // Open Razorpay checkout interface
       const options = {
-        key: "rzp_test_LqWBBDbgwot5lh", // Replace with your Razorpay Key ID
-        amount: subtotal * 100, // Razorpay expects amount in paise
+        key: order.keyId,
+        amount: order.amount,
         currency: "INR",
         name: "SalesSavvy",
         description: "Test Transaction",
-        order_id: razorpayOrderId,
+        order_id: order.orderId,
         handler: async function (response) {
           try {
             // Payment success, verify on backend

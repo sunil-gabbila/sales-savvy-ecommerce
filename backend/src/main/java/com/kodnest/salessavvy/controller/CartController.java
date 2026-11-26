@@ -2,7 +2,6 @@ package com.kodnest.salessavvy.controller;
 
 import java.util.Map;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
@@ -31,7 +30,7 @@ public class CartController {
 
     private final UserRepository userRepository;
 
-    CartController(UserRepository userRepository,CartService cartService) {
+    CartController(UserRepository userRepository, CartService cartService) {
         this.cartService = cartService;
         this.userRepository = userRepository;
     }
